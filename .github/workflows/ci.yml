@@ -28,12 +28,12 @@ jobs:
 
       - name: Configure DVC remote (DagsHub)
         run: |
-          dvc remote add -d myremote https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/cml-dvc.dvc
+          dvc remote add -d --force myremote https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/cml-dvc.dvc
           dvc remote modify myremote auth basic
           dvc remote modify myremote user ${{ secrets.DAGSHUB_USERNAME }}
           dvc remote modify myremote password ${{ secrets.DAGSHUB_TOKEN }}
           dvc remote modify myremote ssl_verify false
-
+          
       - name: DVC pull
         run: |
           dvc pull || echo "No remote cache yet, continuing..."
