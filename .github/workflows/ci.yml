@@ -59,4 +59,4 @@ jobs:
           echo '```' >> report.md
           echo "## 🔢 Matrice de confusion" >> report.md
           echo "![Confusion Matrix](./models/conf_matrix.png)" >> report.md
-          cml comment create --pr report.md
+          cml comment create --target=commit report.md
