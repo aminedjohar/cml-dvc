@@ -1,0 +1,61 @@
+name: churn-mlops-pipeline
+
+on: [push]
+
+permissions: write-all
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Set up CML
+        uses: iterative/setup-cml@v2
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install "dvc[http]==3.63.0"
+
+      - name: Configure DVC remote (DagsHub)
+        run: |
+          dvc remote add -d myremote https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/cml-dvc.dvc
+          dvc remote modify myremote auth basic
+          dvc remote modify myremote user ${{ secrets.DAGSHUB_USERNAME }}
+          dvc remote modify myremote password ${{ secrets.DAGSHUB_TOKEN }}
+          dvc remote modify myremote ssl_verify false
+
+      - name: DVC pull
+        run: |
+          dvc pull || echo "No remote cache yet, continuing..."
+
+      - name: Train / Eval / Push artifacts
+        run: |
+          python script.py
+          dvc add data models
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add data.dvc models.dvc || true
+          git commit -m "Update data/models [skip ci]" || echo "Nothing to commit"
+          dvc push
+
+      - name: Publish CML report
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "## 📊 Métriques du modèle" > report.md
+          echo '```' >> report.md
+          cat models/metrics.txt >> report.md
+          echo '```' >> report.md
+          echo "## 🔢 Matrice de confusion" >> report.md
+          echo "![Confusion Matrix](./models/conf_matrix.png)" >> report.md
+          cml comment create --pr report.md
